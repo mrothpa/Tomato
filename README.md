@@ -1,6 +1,14 @@
 <div align="center">
   <img src="fastlane/metadata/android/en-US/images/featureGraphic.png">
 
+## ⚠️ Project Status & AI Disclosure
+
+This is a **personal fork** of the <a href="https://github.com/nsh07/tomato">original Tomato project</a>. 
+
+Diese Erweiterungen wurden aufgrund von Zeitbeschränkungen im Rahmen eines Hobby-Projekts vollständig mithilfe von Google Gemini (KI) generiert. Eine tiefere manuelle Code-Analyse und Refactoring sind für die Zukunft geplant.
+
+---
+
 ## About
 
 Tomato is a minimalist Pomodoro timer for Android based on Material 3 Expressive.
@@ -66,7 +74,15 @@ Authority*](https://www.androidauthority.com/best-new-android-apps-october-2025-
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="25%"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="25%"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="25%"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="25%"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5.png" width="25%"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width="25%"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" width="25%"><img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" width="25%">
 </p>
 
-### Features
+### Features & Origins
+
+This fork originates from the [Tomato App by nsh07](https://github.com/nsh07/tomato), which provides the brilliant baseline UI based on Material 3 Expressive. The new sensor-driven concept was heavily inspired by the idea behind the [FaceDown](https://github.com/arekbauer/FaceDown) project (though no code was used).
+
+The following core features were natively augmented via AI assistance:
+
+- **Deep Focus Sensor Control**: The timer automatically plays or pauses simply by turning your device face-down. This forces you to detach from the screen while studying.
+- **Native Calendar Sync**: Automated export of Focus sessions directly into your Android System Calendar, equipped with post-session title inputs and target calendar preference.
+- **Smart Abort Mechanism**: An adjustable safety countdown (between 5s and 60s). If the device is lifted and picked up during a session, the app triggers a visual warning. If not placed down again within the timeframe, the session is fully reset to protect your true focus statistics.
 
 - Minimalist UI based on the latest Material 3 Expressive guidelines
 - Detailed statistics of work/study times in an easy to understand manner
@@ -76,6 +92,15 @@ Authority*](https://www.androidauthority.com/best-new-android-apps-october-2025-
       productive
 - Customizable timer parameters
 - Support for Now Bar/Live Updates on Android 16 and later
+
+## Installation & Setup
+
+Like the original project, Tomato functions on common Android architecture:
+- Developed in Kotlin using latest Android SDKs.
+- Leverages Room for SQLite Database operations.
+- UI driven uniformly by Jetpack Compose.
+
+*Permissions requirement:* To utilize the new Native Calendar Sync, the app will request the `READ_CALENDAR` and `WRITE_CALENDAR` permissions upon activation.
 
 ## Translation
 
@@ -147,9 +172,3 @@ This app was made possible by the following libraries:
 
 - [Google Sans Flex](https://fonts.google.com/specimen/Google+Sans+Flex) by
   Google<br/><img src=".github/repo_photos/google-sans-flex.jpg" width="400">
-
-## Star History
-
-Please give this repo a star if you liked my work
-
-[![Star History Chart](https://app.repohistory.com/api/svg?repo=nsh07/Tomato&type=Date&background=F9FAEF&color=4C662B)](https://app.repohistory.com/star-history)

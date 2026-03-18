@@ -57,6 +57,7 @@ fun SliderListItem(
     trailingLabel: (Float) -> String,
     shape: CornerBasedShape,
     modifier: Modifier = Modifier,
+    steps: Int = 0,
     icon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     containerColor: Color = listItemColors.containerColor,
@@ -108,6 +109,7 @@ fun SliderListItem(
                     onValueChangeFinished(value)
                 },
                 valueRange = valueRange,
+                steps = steps,
                 enabled = enabled,
                 modifier = Modifier.weight(1f)
             )

@@ -216,17 +216,23 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                     Log.d("TimerService", "FaceUp detected: Pausing")
                     toggleTimer()
                     
-                    // Start 30s abort countdown completely
-                    if (_timerState.value.timerMode == TimerMode.FOCUS) {
-                        abortJob?.cancel()
-                        abortJob = timerScope.launch {
-                            for (i in 30 downTo 1) {
-                                _timerState.update { it.copy(abortCountdown = i) }
-                                delay(1000)
-                            }
-                            // Time's up: Complete abort
-                            _timerState.update { it.copy(abortCountdown = null) }
+                    // Start dynamic abort countdown for both Focus and Break
+                    abortJob?.cancel()
+                    val delaySeconds = _settingsState.value.abortDelaySeconds
+                    abortJob = timerScope.launch {
+                        for (i in delaySeconds downTo 1) {
+                            _timerState.update { it.copy(abortCountdown = i) }
+                            delay(1000)
+                        }
+                        // Time's up: Complete abort exactly like manual reset
+                        _timerState.update { it.copy(abortCountdown = null) }
+                        
+                        // Execute same logic as Actions.RESET
+                        if (_timerState.value.timerRunning) toggleTimer()
+                        abortJob = null // Prevent self-cancellation inside resetTimer()
+                        skipScope.launch {
                             resetTimer()
+                            stopForegroundService()
                         }
                     }
                 } else if (isFaceDown) {

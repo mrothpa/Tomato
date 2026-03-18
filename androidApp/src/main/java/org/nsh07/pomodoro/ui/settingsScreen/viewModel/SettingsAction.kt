@@ -47,4 +47,6 @@ sealed interface SettingsAction {
     // Calendar Integration
     data class SaveCalendarEnabled(val enabled: Boolean) : SettingsAction
     data class SaveSelectedCalendarId(val id: Long) : SettingsAction
+
+    data class SaveAbortDelaySeconds(val seconds: Int) : SettingsAction
 }

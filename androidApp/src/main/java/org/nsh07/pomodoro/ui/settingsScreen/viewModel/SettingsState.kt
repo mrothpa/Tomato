@@ -63,5 +63,7 @@ data class SettingsState(
     val calendarEnabled: Boolean = false,
     val selectedCalendarId: Long? = null,
     val selectedCalendarName: String = "Kein Kalender ausgewählt",
-    val availableCalendars: List<CalendarInfo> = emptyList()
+    val availableCalendars: List<CalendarInfo> = emptyList(),
+
+    val abortDelaySeconds: Int = 30
 )

@@ -140,6 +140,7 @@ class SettingsViewModel(
 
             is SettingsAction.SaveCalendarEnabled -> saveCalendarEnabled(action.enabled)
             is SettingsAction.SaveSelectedCalendarId -> saveSelectedCalendarId(action.id)
+            is SettingsAction.SaveAbortDelaySeconds -> saveAbortDelaySeconds(action.seconds)
         }
     }
 
@@ -206,6 +207,13 @@ class SettingsViewModel(
                 it.copy(selectedCalendarId = id, selectedCalendarName = name) 
             }
             preferenceRepository.saveIntPreference("selected_calendar_id", id.toInt())
+        }
+    }
+
+    private fun saveAbortDelaySeconds(seconds: Int) {
+        viewModelScope.launch {
+            _settingsState.update { it.copy(abortDelaySeconds = seconds) }
+            preferenceRepository.saveIntPreference("abort_delay_seconds", seconds)
         }
     }
 
@@ -582,6 +590,7 @@ class SettingsViewModel(
 
         val calendarEnabled = preferenceRepository.getBooleanPreference("calendar_enabled") ?: false
         val selectedCalendarId = preferenceRepository.getIntPreference("selected_calendar_id")?.toLong()
+        val abortDelaySeconds = preferenceRepository.getIntPreference("abort_delay_seconds") ?: 30
 
         _settingsState.update { currentState ->
             currentState.copy(
@@ -606,7 +615,8 @@ class SettingsViewModel(
                 vibrationOffDuration = vibrationOffDuration,
                 vibrationAmplitude = vibrationAmplitude,
                 calendarEnabled = calendarEnabled,
-                selectedCalendarId = selectedCalendarId
+                selectedCalendarId = selectedCalendarId,
+                abortDelaySeconds = abortDelaySeconds
             )
         }
 

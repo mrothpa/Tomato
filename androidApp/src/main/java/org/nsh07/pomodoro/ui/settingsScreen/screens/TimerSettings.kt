@@ -614,6 +614,22 @@ fun TimerSettings(
                     }
                 }
 
+                item {
+                    SliderListItem(
+                        value = settingsState.abortDelaySeconds.toFloat(),
+                        valueRange = 5f..60f,
+                        enabled = true,
+                        steps = 10,
+                        label = "Abbruch nach",
+                        trailingLabel = { "${it.toInt()}s" },
+                        icon = { Icon(painterResource(R.drawable.pause), null) },
+                        shape = bottomListItemShape
+                    ) { newValue ->
+                        onAction(SettingsAction.SaveAbortDelaySeconds(newValue.toInt()))
+                    }
+                }
+                item { Spacer(Modifier.height(12.dp)) }
+
                 if (!isPlus) {
                     item {
                         PlusDivider(setShowPaywall)

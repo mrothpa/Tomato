@@ -117,6 +117,7 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
     private val accelerometer by lazy { sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
     private var isFaceDown = false
     private var lastSensorUpdate = 0L
+    private var abortJob: Job? = null
 
     private val cs by lazy { stateRepository.colorScheme }
 
@@ -214,9 +215,32 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                 if (!isFaceDown && _timerState.value.timerRunning) {
                     Log.d("TimerService", "FaceUp detected: Pausing")
                     toggleTimer()
-                } else if (isFaceDown && !_timerState.value.timerRunning && sessionActualStartTime != 0L) {
-                    Log.d("TimerService", "FaceDown detected: Auto-Resuming")
-                    toggleTimer()
+                    
+                    // Start 30s abort countdown completely
+                    if (_timerState.value.timerMode == TimerMode.FOCUS) {
+                        abortJob?.cancel()
+                        abortJob = timerScope.launch {
+                            for (i in 30 downTo 1) {
+                                _timerState.update { it.copy(abortCountdown = i) }
+                                delay(1000)
+                            }
+                            // Time's up: Complete abort
+                            _timerState.update { it.copy(abortCountdown = null) }
+                            resetTimer()
+                        }
+                    }
+                } else if (isFaceDown) {
+                    // Cancel abort countdown
+                    if (abortJob != null) {
+                        abortJob?.cancel()
+                        abortJob = null
+                        _timerState.update { it.copy(abortCountdown = null) }
+                    }
+                    
+                    if (!_timerState.value.timerRunning && sessionActualStartTime != 0L) {
+                        Log.d("TimerService", "FaceDown detected: Auto-Resuming")
+                        toggleTimer()
+                    }
                 }
             }
         }
@@ -226,15 +250,20 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
 
     private fun toggleTimer() {
         updateProgressSegments()
+        
+        // Clear abort state when manual toggle happens
+        abortJob?.cancel()
+        abortJob = null
+        _timerState.update { it.copy(abortCountdown = null) }
 
-        if (_timerState.value.timerRunning) {
+        if (_timerState.value.timerRunning || _timerState.value.waitingForFaceDown) {
             setDoNotDisturb(false)
             notificationBuilder.clearActions().addTimerActions(
                 this, R.drawable.play, getString(R.string.start)
             )
             showTimerNotification(time.toInt(), paused = true)
             _timerState.update { currentState ->
-                currentState.copy(timerRunning = false)
+                currentState.copy(timerRunning = false, waitingForFaceDown = false)
             }
             pauseTime = SystemClock.elapsedRealtime()
         } else {
@@ -246,6 +275,7 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
             // This allows the user to click Start, then put the phone down to actually start.
             if (!isFaceDown) {
                 Log.d("TimerService", "Start clicked but not FaceDown: Waiting...")
+                _timerState.update { it.copy(waitingForFaceDown = true) }
                 return
             }
 
@@ -254,7 +284,7 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
             notificationBuilder.clearActions().addTimerActions(
                 this, R.drawable.pause, getString(R.string.stop)
             )
-            _timerState.update { it.copy(timerRunning = true) }
+            _timerState.update { it.copy(timerRunning = true, waitingForFaceDown = false) }
             if (pauseTime != 0L) pauseDuration += SystemClock.elapsedRealtime() - pauseTime
 
             var iterations = -1
@@ -282,16 +312,28 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                         val endTime = System.currentTimeMillis()
                         val mode = _timerState.value.timerMode
                         val capturedStartTime = sessionActualStartTime
+                        val isFocus = mode == TimerMode.FOCUS
                         
                         pendingSession = Session(
                             title = null,
                             startTime = capturedStartTime,
                             endTime = endTime,
-                            type = if (mode == TimerMode.FOCUS) SessionType.FOCUS else SessionType.BREAK
+                            type = if (isFocus) SessionType.FOCUS else SessionType.BREAK
                         )
                         
-                        _timerState.update { currentState ->
-                            currentState.copy(timerRunning = false, isSessionComplete = true)
+                        if (isFocus) {
+                            _timerState.update { currentState ->
+                                currentState.copy(timerRunning = false, isSessionComplete = true)
+                            }
+                        } else {
+                            // Automatically insert and skip dialog
+                            timerScope.launch {
+                                sessionDao.insertSession(pendingSession!!)
+                                pendingSession = null
+                            }
+                            _timerState.update { currentState ->
+                                currentState.copy(timerRunning = false, isSessionComplete = false)
+                            }
                         }
                         
                         skipTimer()
@@ -429,6 +471,9 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
 
     private suspend fun resetTimer() {
         val settingsState = _settingsState.value
+        
+        abortJob?.cancel()
+        abortJob = null
 
         timerStateSnapshot.save(
             lastSavedDuration,
@@ -457,7 +502,10 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                 nextTimerMode = if (settingsState.sessionLength > 1) TimerMode.SHORT_BREAK else TimerMode.LONG_BREAK,
                 nextTimeStr = millisecondsToStr(if (settingsState.sessionLength > 1) settingsState.shortBreakTime else settingsState.longBreakTime),
                 currentFocusCount = 1,
-                totalFocusCount = settingsState.sessionLength
+                totalFocusCount = settingsState.sessionLength,
+                abortCountdown = null,
+                waitingForFaceDown = false,
+                timerRunning = false
             )
         }
 

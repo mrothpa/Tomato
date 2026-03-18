@@ -29,7 +29,9 @@ data class TimerState(
     val totalFocusCount: Int = 4,
     val alarmRinging: Boolean = false,
     val serviceRunning: Boolean = false,
-    val isSessionComplete: Boolean = false
+    val isSessionComplete: Boolean = false,
+    val waitingForFaceDown: Boolean = false,
+    val abortCountdown: Int? = null
 )
 
 enum class TimerMode {

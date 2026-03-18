@@ -416,6 +416,20 @@ fun SharedTransitionScope.TimerScreen(
                                                 color = colorScheme.outline
                                             )
                                         }
+                                        AnimatedVisibility(
+                                            visible = timerState.abortCountdown != null,
+                                            enter = fadeIn(motionScheme.defaultEffectsSpec()) +
+                                                    expandVertically(motionScheme.defaultSpatialSpec()),
+                                            exit = fadeOut(motionScheme.defaultEffectsSpec()) +
+                                                    shrinkVertically(motionScheme.defaultSpatialSpec())
+                                        ) {
+                                            Text(
+                                                text = "Abbruch in ${timerState.abortCountdown}s...",
+                                                fontFamily = googleFlex600,
+                                                style = typography.titleMedium,
+                                                color = colorScheme.error
+                                            )
+                                        }
                                     }
                                 }
                                 val interactionSources =
@@ -447,7 +461,7 @@ fun SharedTransitionScope.TimerScreen(
                                                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                                     }
                                                 },
-                                                checked = timerState.timerRunning,
+                                                checked = timerState.timerRunning || timerState.waitingForFaceDown,
                                                 colors = IconButtonDefaults.filledIconToggleButtonColors(
                                                     checkedContainerColor = color,
                                                     checkedContentColor = onColor
@@ -458,7 +472,7 @@ fun SharedTransitionScope.TimerScreen(
                                                     .size(width = 128.dp, height = 96.dp)
                                                     .animateWidth(interactionSources[0])
                                             ) {
-                                                if (timerState.timerRunning) {
+                                                if (timerState.timerRunning || timerState.waitingForFaceDown) {
                                                     Icon(
                                                         painterResource(R.drawable.pause_large),
                                                         contentDescription = stringResource(R.string.pause),
@@ -476,7 +490,7 @@ fun SharedTransitionScope.TimerScreen(
                                         { state ->
                                             DropdownMenuItem(
                                                 leadingIcon = {
-                                                    if (timerState.timerRunning) {
+                                                    if (timerState.timerRunning || timerState.waitingForFaceDown) {
                                                         Icon(
                                                             painterResource(R.drawable.pause),
                                                             contentDescription = stringResource(R.string.pause)
@@ -490,7 +504,7 @@ fun SharedTransitionScope.TimerScreen(
                                                 },
                                                 text = {
                                                     Text(
-                                                        if (timerState.timerRunning) stringResource(
+                                                        if (timerState.timerRunning || timerState.waitingForFaceDown) stringResource(
                                                             R.string.pause
                                                         ) else stringResource(
                                                             R.string.play

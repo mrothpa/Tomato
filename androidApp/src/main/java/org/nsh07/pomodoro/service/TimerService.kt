@@ -33,6 +33,7 @@ import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -186,7 +187,10 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                 lastSensorUpdate = currentTime
                 
                 if (!isFaceDown && _timerState.value.timerRunning) {
-                    // Turn off timer if it's running but not face down
+                    Log.d("TimerService", "FaceUp detected: Pausing")
+                    toggleTimer()
+                } else if (isFaceDown && !_timerState.value.timerRunning && sessionActualStartTime != 0L) {
+                    Log.d("TimerService", "FaceDown detected: Auto-Resuming")
                     toggleTimer()
                 }
             }
@@ -209,8 +213,16 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
             }
             pauseTime = SystemClock.elapsedRealtime()
         } else {
-            // Only start if face down
-            if (!isFaceDown) return
+            if (sessionActualStartTime == 0L) {
+                sessionActualStartTime = System.currentTimeMillis()
+            }
+
+            // If not face down, we don't start the ticking loop.
+            // This allows the user to click Start, then put the phone down to actually start.
+            if (!isFaceDown) {
+                Log.d("TimerService", "Start clicked but not FaceDown: Waiting...")
+                return
+            }
 
             if (_timerState.value.timerMode == TimerMode.FOCUS) setDoNotDisturb(true)
             else setDoNotDisturb(false)
@@ -219,10 +231,6 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
             )
             _timerState.update { it.copy(timerRunning = true) }
             if (pauseTime != 0L) pauseDuration += SystemClock.elapsedRealtime() - pauseTime
-            
-            if (sessionActualStartTime == 0L) {
-                sessionActualStartTime = System.currentTimeMillis()
-            }
 
             var iterations = -1
 
@@ -248,6 +256,7 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                     if (time < 0) {
                         val endTime = System.currentTimeMillis()
                         val mode = _timerState.value.timerMode
+                        val capturedStartTime = sessionActualStartTime
                         skipTimer()
                         _timerState.update { currentState ->
                             currentState.copy(timerRunning = false)
@@ -257,13 +266,12 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                         timerScope.launch {
                             val session = Session(
                                 title = null,
-                                startTime = sessionActualStartTime,
+                                startTime = capturedStartTime,
                                 endTime = endTime,
                                 type = if (mode == TimerMode.FOCUS) SessionType.FOCUS else SessionType.BREAK
                             )
                             sessionDao.insertSession(session)
                             calendarSyncManager.addSessionToCalendar(session)
-                            sessionActualStartTime = 0L
                         }
                         break
                     } else {

@@ -31,6 +31,7 @@ import org.nsh07.pomodoro.ui.settingsScreen.screens.backupRestore.viewModel.Back
 import org.nsh07.pomodoro.ui.settingsScreen.viewModel.SettingsViewModel
 import org.nsh07.pomodoro.ui.statsScreen.viewModel.StatsViewModel
 import org.nsh07.pomodoro.ui.timerScreen.viewModel.TimerViewModel
+import org.nsh07.pomodoro.utils.CalendarSyncManager
 
 val dbModule = module {
     single<AppDatabase> { create(::createDatabase) }
@@ -48,6 +49,7 @@ val servicesModule = module {
     single<AppPreferenceRepository>() bind PreferenceRepository::class
     single<StateRepository>()
     single<ServiceHelper>()
+    single<CalendarSyncManager>()
 
     single { NotificationManagerCompat.from(get()) }
     single { create(::createNotificationManager) }

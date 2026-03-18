@@ -21,6 +21,10 @@ import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.os.Build
@@ -46,18 +50,24 @@ import org.koin.android.ext.android.inject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.nsh07.pomodoro.R
+import org.nsh07.pomodoro.data.Session
+import org.nsh07.pomodoro.data.SessionDao
+import org.nsh07.pomodoro.data.SessionType
 import org.nsh07.pomodoro.data.StatRepository
 import org.nsh07.pomodoro.data.StateRepository
 import org.nsh07.pomodoro.di.ActivityCallbacks
 import org.nsh07.pomodoro.di.TimerStateHolder
 import org.nsh07.pomodoro.ui.timerScreen.viewModel.TimerMode
+import org.nsh07.pomodoro.utils.CalendarSyncManager
 import org.nsh07.pomodoro.utils.millisecondsToStr
 import kotlin.text.Typography.middleDot
 
-class TimerService : Service(), KoinComponent {
+class TimerService : Service(), KoinComponent, SensorEventListener {
 
     private val stateRepository: StateRepository by inject()
     private val statRepository: StatRepository by inject()
+    private val sessionDao: SessionDao by inject()
+    private val calendarSyncManager: CalendarSyncManager by inject()
     private val notificationManager: NotificationManagerCompat by inject()
     private val notificationManagerService: NotificationManager by inject()
     private val notificationBuilder: NotificationCompat.Builder by inject()
@@ -77,6 +87,8 @@ class TimerService : Service(), KoinComponent {
     private var startTime = 0L
     private var pauseTime = 0L
     private var pauseDuration = 0L
+
+    private var sessionActualStartTime = 0L
 
     private var lastSavedDuration = 0L
 
@@ -99,6 +111,11 @@ class TimerService : Service(), KoinComponent {
         }
     }
 
+    private val sensorManager by lazy { getSystemService(SENSOR_SERVICE) as SensorManager }
+    private val accelerometer by lazy { sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) }
+    private var isFaceDown = false
+    private var lastSensorUpdate = 0L
+
     private val cs by lazy { stateRepository.colorScheme }
 
     private lateinit var notificationStyle: NotificationCompat.ProgressStyle
@@ -111,10 +128,14 @@ class TimerService : Service(), KoinComponent {
         super.onCreate()
         stateRepository.timerState.update { it.copy(serviceRunning = true) }
         alarm = initializeMediaPlayer()
+        accelerometer?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
     }
 
     override fun onDestroy() {
         stateRepository.timerState.update { it.copy(serviceRunning = false) }
+        sensorManager.unregisterListener(this)
         runBlocking {
             job.cancel()
             saveTimeToDb()
@@ -152,6 +173,28 @@ class TimerService : Service(), KoinComponent {
         return super.onStartCommand(intent, flags, startId)
     }
 
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastSensorUpdate < 500) return // Debounce
+
+            val z = event.values[2]
+            val faceDown = z < -8.5
+
+            if (faceDown != isFaceDown) {
+                isFaceDown = faceDown
+                lastSensorUpdate = currentTime
+                
+                if (!isFaceDown && _timerState.value.timerRunning) {
+                    // Turn off timer if it's running but not face down
+                    toggleTimer()
+                }
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
     private fun toggleTimer() {
         updateProgressSegments()
 
@@ -166,6 +209,9 @@ class TimerService : Service(), KoinComponent {
             }
             pauseTime = SystemClock.elapsedRealtime()
         } else {
+            // Only start if face down
+            if (!isFaceDown) return
+
             if (_timerState.value.timerMode == TimerMode.FOCUS) setDoNotDisturb(true)
             else setDoNotDisturb(false)
             notificationBuilder.clearActions().addTimerActions(
@@ -173,6 +219,10 @@ class TimerService : Service(), KoinComponent {
             )
             _timerState.update { it.copy(timerRunning = true) }
             if (pauseTime != 0L) pauseDuration += SystemClock.elapsedRealtime() - pauseTime
+            
+            if (sessionActualStartTime == 0L) {
+                sessionActualStartTime = System.currentTimeMillis()
+            }
 
             var iterations = -1
 
@@ -196,9 +246,24 @@ class TimerService : Service(), KoinComponent {
                     if (iterations == 0) showTimerNotification(time.toInt())
 
                     if (time < 0) {
+                        val endTime = System.currentTimeMillis()
+                        val mode = _timerState.value.timerMode
                         skipTimer()
                         _timerState.update { currentState ->
                             currentState.copy(timerRunning = false)
+                        }
+                        
+                        // Log session
+                        timerScope.launch {
+                            val session = Session(
+                                title = null,
+                                startTime = sessionActualStartTime,
+                                endTime = endTime,
+                                type = if (mode == TimerMode.FOCUS) SessionType.FOCUS else SessionType.BREAK
+                            )
+                            sessionDao.insertSession(session)
+                            calendarSyncManager.addSessionToCalendar(session)
+                            sessionActualStartTime = 0L
                         }
                         break
                     } else {
@@ -352,6 +417,7 @@ class TimerService : Service(), KoinComponent {
         startTime = 0L
         pauseTime = 0L
         pauseDuration = 0L
+        sessionActualStartTime = 0L
 
         _timerState.update { currentState ->
             currentState.copy(
@@ -387,6 +453,7 @@ class TimerService : Service(), KoinComponent {
         startTime = 0L
         pauseTime = 0L
         pauseDuration = 0L
+        sessionActualStartTime = 0L
 
         cycles = (cycles + 1) % (settingsState.sessionLength * 2)
 

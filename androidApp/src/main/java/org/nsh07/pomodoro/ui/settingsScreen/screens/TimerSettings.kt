@@ -48,8 +48,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
@@ -60,6 +63,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.material3.MaterialTheme.typography
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
@@ -535,6 +539,78 @@ fun TimerSettings(
                             colors = listItemColors,
                             modifier = Modifier.clip(cardShape)
                         )
+                    }
+                }
+
+                // Calendar Integration Section
+                item {
+                    Text(
+                        text = stringResource(R.string.calendar_integration),
+                        style = typography.labelLarge,
+                        color = colorScheme.primary,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 8.dp)
+                    )
+                }
+                item {
+                    Column(Modifier.background(listItemColors.containerColor, topListItemShape)) {
+                        ListItem(
+                            leadingContent = { Icon(painterResource(R.drawable.clocks), null) }, // Replace with calendar icon if available
+                            headlineContent = { Text(stringResource(R.string.enable_calendar_sync)) },
+                            supportingContent = { Text(stringResource(R.string.calendar_sync_desc)) },
+                            trailingContent = {
+                                Switch(
+                                    checked = settingsState.calendarEnabled,
+                                    onCheckedChange = { onAction(SettingsAction.SaveCalendarEnabled(it)) },
+                                    colors = switchColors
+                                )
+                            },
+                            colors = listItemColors,
+                            modifier = Modifier.clip(topListItemShape)
+                        )
+                    }
+                }
+                item {
+                    AnimatedVisibility(visible = settingsState.calendarEnabled) {
+                        var expanded by remember { mutableStateOf(false) }
+                        Column(Modifier.background(listItemColors.containerColor, bottomListItemShape)) {
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedTextField(
+                                    value = settingsState.selectedCalendarName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(stringResource(R.string.select_calendar)) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    settingsState.availableCalendars.forEach { calendar ->
+                                        DropdownMenuItem(
+                                            text = {
+                                                Column {
+                                                    Text(calendar.name)
+                                                    Text(calendar.account, style = typography.bodySmall)
+                                                }
+                                            },
+                                            onClick = {
+                                                onAction(SettingsAction.SaveSelectedCalendarId(calendar.id))
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 

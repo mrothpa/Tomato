@@ -79,6 +79,9 @@ class TimerViewModel(
     }
 
     fun onAction(action: TimerAction) {
+        if (action is TimerAction.DismissSessionComplete || action is TimerAction.SaveSessionToCalendar) {
+            stateRepository.timerState.update { it.copy(isSessionComplete = false) }
+        }
         serviceHelper.startService(action)
     }
 }

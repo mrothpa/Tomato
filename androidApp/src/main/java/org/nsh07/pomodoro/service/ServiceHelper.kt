@@ -59,6 +59,19 @@ class ServiceHelper(private val context: Context) {
                     it.action = TimerService.Actions.TOGGLE.toString()
                     context.startService(it)
                 }
+
+            is TimerAction.SaveSessionToCalendar ->
+                Intent(context, TimerService::class.java).also {
+                    it.action = TimerService.Actions.SAVE_SESSION.toString()
+                    it.putExtra("EXTRA_TITLE", action.title)
+                    context.startService(it)
+                }
+
+            TimerAction.DismissSessionComplete ->
+                Intent(context, TimerService::class.java).also {
+                    it.action = TimerService.Actions.DISMISS_SESSION.toString()
+                    context.startService(it)
+                }
         }
     }
 }

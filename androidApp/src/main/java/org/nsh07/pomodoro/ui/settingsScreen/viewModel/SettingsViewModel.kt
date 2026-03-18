@@ -17,7 +17,9 @@
 
 package org.nsh07.pomodoro.ui.settingsScreen.viewModel
 
+import android.content.Context
 import android.net.Uri
+import android.provider.CalendarContract
 import android.provider.Settings
 import android.util.Log
 import androidx.compose.foundation.text.input.TextFieldState
@@ -54,6 +56,7 @@ import org.nsh07.pomodoro.utils.millisecondsToStr
 
 @OptIn(FlowPreview::class, ExperimentalMaterial3Api::class)
 class SettingsViewModel(
+    private val context: Context,
     private val billingManager: BillingManager,
     private val preferenceRepository: PreferenceRepository,
     private val stateRepository: StateRepository,
@@ -104,6 +107,9 @@ class SettingsViewModel(
     init {
         viewModelScope.launch {
             reloadSettings()
+            if (_settingsState.value.calendarEnabled) {
+                loadAvailableCalendars()
+            }
         }
     }
 
@@ -131,6 +137,75 @@ class SettingsViewModel(
             is SettingsAction.AskEraseData -> askEraseData()
             is SettingsAction.CancelEraseData -> cancelEraseData()
             is SettingsAction.EraseData -> deleteStats()
+
+            is SettingsAction.SaveCalendarEnabled -> saveCalendarEnabled(action.enabled)
+            is SettingsAction.SaveSelectedCalendarId -> saveSelectedCalendarId(action.id)
+        }
+    }
+
+    private fun loadAvailableCalendars() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val calendars = mutableListOf<CalendarInfo>()
+            val projection = arrayOf(
+                CalendarContract.Calendars._ID,
+                CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+                CalendarContract.Calendars.ACCOUNT_NAME
+            )
+            
+            try {
+                context.contentResolver.query(
+                    CalendarContract.Calendars.CONTENT_URI,
+                    projection,
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndex(CalendarContract.Calendars._ID)
+                    val nameCol = cursor.getColumnIndex(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
+                    val accountCol = cursor.getColumnIndex(CalendarContract.Calendars.ACCOUNT_NAME)
+                    
+                    while (cursor.moveToNext()) {
+                        calendars.add(
+                            CalendarInfo(
+                                id = cursor.getLong(idCol),
+                                name = cursor.getString(nameCol),
+                                account = cursor.getString(accountCol)
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CalendarSync", "Error loading calendars", e)
+            }
+
+            _settingsState.update { it.copy(availableCalendars = calendars) }
+            
+            // Update selected calendar name if we have an ID
+            val selectedId = _settingsState.value.selectedCalendarId
+            if (selectedId != null) {
+                val selectedName = calendars.find { it.id == selectedId }?.name ?: "Kein Kalender ausgewählt"
+                _settingsState.update { it.copy(selectedCalendarName = selectedName) }
+            }
+        }
+    }
+
+    private fun saveCalendarEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            _settingsState.update { it.copy(calendarEnabled = enabled) }
+            preferenceRepository.saveBooleanPreference("calendar_enabled", enabled)
+            if (enabled) {
+                loadAvailableCalendars()
+            }
+        }
+    }
+
+    private fun saveSelectedCalendarId(id: Long) {
+        viewModelScope.launch {
+            val name = _settingsState.value.availableCalendars.find { it.id == id }?.name ?: "Kein Kalender ausgewählt"
+            _settingsState.update { 
+                it.copy(selectedCalendarId = id, selectedCalendarName = name) 
+            }
+            preferenceRepository.saveIntPreference("selected_calendar_id", id.toInt())
         }
     }
 
@@ -505,6 +580,8 @@ class SettingsViewModel(
                 settingsState.vibrationAmplitude
             )
 
+        val calendarEnabled = preferenceRepository.getBooleanPreference("calendar_enabled") ?: false
+        val selectedCalendarId = preferenceRepository.getIntPreference("selected_calendar_id")?.toLong()
 
         _settingsState.update { currentState ->
             currentState.copy(
@@ -527,7 +604,9 @@ class SettingsViewModel(
                 secureAod = secureAod,
                 vibrationOnDuration = vibrationOnDuration,
                 vibrationOffDuration = vibrationOffDuration,
-                vibrationAmplitude = vibrationAmplitude
+                vibrationAmplitude = vibrationAmplitude,
+                calendarEnabled = calendarEnabled,
+                selectedCalendarId = selectedCalendarId
             )
         }
 

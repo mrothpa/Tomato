@@ -24,6 +24,13 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 @Immutable
+data class CalendarInfo(
+    val id: Long,
+    val name: String,
+    val account: String
+)
+
+@Immutable
 data class SettingsState(
     val theme: String = "auto",
     val colorScheme: String = Color.White.toString(),
@@ -50,5 +57,11 @@ data class SettingsState(
     val sessionLength: Int = 4,
 
     val alarmSoundUri: Uri? =
-        Settings.System.DEFAULT_ALARM_ALERT_URI ?: Settings.System.DEFAULT_RINGTONE_URI
+        Settings.System.DEFAULT_ALARM_ALERT_URI ?: Settings.System.DEFAULT_RINGTONE_URI,
+
+    // Calendar Integration
+    val calendarEnabled: Boolean = false,
+    val selectedCalendarId: Long? = null,
+    val selectedCalendarName: String = "Kein Kalender ausgewählt",
+    val availableCalendars: List<CalendarInfo> = emptyList()
 )

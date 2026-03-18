@@ -52,7 +52,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,6 +73,8 @@ import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.material3.MaterialTheme.shapes
 import androidx.compose.material3.MaterialTheme.typography
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarDuration
@@ -110,6 +115,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Devices
 import androidx.compose.ui.tooling.preview.Preview
@@ -181,6 +187,47 @@ fun SharedTransitionScope.TimerScreen(
         adaptStrategies = SupportingPaneScaffoldDefaults.adaptStrategies(supportingPaneAdaptStrategy = AdaptStrategy.Hide)
     )
     val expansionState = rememberPaneExpansionState()
+
+    if (timerState.isSessionComplete) {
+        var sessionTitle by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { onAction(TimerAction.DismissSessionComplete) },
+            title = { Text(text = stringResource(R.string.session_complete_title), style = typography.headlineSmall) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = stringResource(R.string.session_complete_desc))
+                    OutlinedTextField(
+                        value = sessionTitle,
+                        onValueChange = { sessionTitle = it },
+                        label = { Text(stringResource(R.string.session_title_label)) },
+                        placeholder = { Text(stringResource(R.string.session_title_placeholder)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (settingsState.calendarEnabled) {
+                        Text(
+                            text = "Ziel-Kalender: ${settingsState.selectedCalendarName}",
+                            style = typography.bodySmall,
+                            color = colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { 
+                    onAction(TimerAction.SaveSessionToCalendar(sessionTitle.ifBlank { null }))
+                }) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { onAction(TimerAction.DismissSessionComplete) }) {
+                    Text(stringResource(R.string.discard))
+                }
+            },
+            shape = RoundedCornerShape(28.dp)
+        )
+    }
 
     SupportingPaneScaffold(
         directive = navigator.scaffoldDirective,

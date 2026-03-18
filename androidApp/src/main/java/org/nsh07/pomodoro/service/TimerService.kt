@@ -90,6 +90,7 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
     private var pauseDuration = 0L
 
     private var sessionActualStartTime = 0L
+    private var pendingSession: Session? = null
 
     private var lastSavedDuration = 0L
 
@@ -170,8 +171,32 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
             Actions.STOP_ALARM.toString() -> stopAlarm()
 
             Actions.UPDATE_ALARM_TONE.toString() -> updateAlarmTone()
+
+            Actions.SAVE_SESSION.toString() -> {
+                val title = intent.getStringExtra("EXTRA_TITLE")
+                savePendingSession(title)
+            }
+
+            Actions.DISMISS_SESSION.toString() -> {
+                pendingSession = null
+                _timerState.update { it.copy(isSessionComplete = false) }
+            }
         }
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    private fun savePendingSession(title: String?) {
+        pendingSession?.let { session ->
+            timerScope.launch {
+                val finalSession = session.copy(title = title)
+                sessionDao.insertSession(finalSession)
+                if (_settingsState.value.calendarEnabled) {
+                    calendarSyncManager.addSessionToCalendar(finalSession, _settingsState.value.selectedCalendarId)
+                }
+                pendingSession = null
+                _timerState.update { it.copy(isSessionComplete = false) }
+            }
+        }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
@@ -257,22 +282,19 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
                         val endTime = System.currentTimeMillis()
                         val mode = _timerState.value.timerMode
                         val capturedStartTime = sessionActualStartTime
-                        skipTimer()
+                        
+                        pendingSession = Session(
+                            title = null,
+                            startTime = capturedStartTime,
+                            endTime = endTime,
+                            type = if (mode == TimerMode.FOCUS) SessionType.FOCUS else SessionType.BREAK
+                        )
+                        
                         _timerState.update { currentState ->
-                            currentState.copy(timerRunning = false)
+                            currentState.copy(timerRunning = false, isSessionComplete = true)
                         }
                         
-                        // Log session
-                        timerScope.launch {
-                            val session = Session(
-                                title = null,
-                                startTime = capturedStartTime,
-                                endTime = endTime,
-                                type = if (mode == TimerMode.FOCUS) SessionType.FOCUS else SessionType.BREAK
-                            )
-                            sessionDao.insertSession(session)
-                            calendarSyncManager.addSessionToCalendar(session)
-                        }
+                        skipTimer()
                         break
                     } else {
                         _timerState.update { currentState ->
@@ -641,6 +663,6 @@ class TimerService : Service(), KoinComponent, SensorEventListener {
     }
 
     enum class Actions {
-        TOGGLE, SKIP, RESET, UNDO_RESET, STOP_ALARM, UPDATE_ALARM_TONE
+        TOGGLE, SKIP, RESET, UNDO_RESET, STOP_ALARM, UPDATE_ALARM_TONE, SAVE_SESSION, DISMISS_SESSION
     }
 }

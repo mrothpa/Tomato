@@ -146,4 +146,16 @@
     <string name="choose_file">Choose file</string>
     <string name="restart_app">Restart app</string>
     <string name="vibration_pattern">Vibration pattern</string>
+
+    <!-- Calendar Integration -->
+    <string name="calendar_integration">Calendar Integration</string>
+    <string name="enable_calendar_sync">Enable Calendar Sync</string>
+    <string name="calendar_sync_desc">Save completed sessions to your calendar</string>
+    <string name="select_calendar">Select Calendar</string>
+    <string name="session_complete_title">Session Complete!</string>
+    <string name="session_complete_desc">Great job! What did you achieve?</string>
+    <string name="session_title_label">Session Title</string>
+    <string name="session_title_placeholder">e.g. Reading, Coding, Gym...</string>
+    <string name="save">Save</string>
+    <string name="discard">Discard</string>
 </resources>

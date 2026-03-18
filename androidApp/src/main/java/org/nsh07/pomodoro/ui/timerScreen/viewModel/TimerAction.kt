@@ -24,4 +24,6 @@ sealed interface TimerAction {
     data object UndoReset : TimerAction
     data object StopAlarm : TimerAction
     data object ToggleTimer : TimerAction
+    data class SaveSessionToCalendar(val title: String?) : TimerAction
+    data object DismissSessionComplete : TimerAction
 }

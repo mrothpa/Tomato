@@ -43,4 +43,8 @@ sealed interface SettingsAction {
     data object AskEraseData : SettingsAction
     data object CancelEraseData : SettingsAction
     data object EraseData : SettingsAction
+
+    // Calendar Integration
+    data class SaveCalendarEnabled(val enabled: Boolean) : SettingsAction
+    data class SaveSelectedCalendarId(val id: Long) : SettingsAction
 }

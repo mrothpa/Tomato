@@ -20,4 +20,14 @@ class Converters {
     fun stringToLocalDate(date: String?): LocalDate? {
         return if (date != null) LocalDate.parse(date) else null
     }
+
+    @TypeConverter
+    fun fromSessionType(type: SessionType): String {
+        return type.name
+    }
+
+    @TypeConverter
+    fun toSessionType(value: String): SessionType {
+        return SessionType.valueOf(value)
+    }
 }

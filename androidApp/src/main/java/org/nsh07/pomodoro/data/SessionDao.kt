@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Nishant Mishra
+ * Copyright (c) 2025 Nishant Mishra
  *
  * This file is part of Tomato - a minimalist pomodoro timer for Android.
  *
@@ -17,24 +17,20 @@
 
 package org.nsh07.pomodoro.data
 
-import androidx.room.AutoMigration
-import androidx.room.Database
-import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
-@Database(
-    entities = [IntPreference::class, BooleanPreference::class, StringPreference::class, Stat::class, Session::class],
-    version = 3,
-    autoMigrations = [
-        AutoMigration(from = 1, to = 2),
-        AutoMigration(from = 2, to = 3)
-    ]
-)
-@TypeConverters(Converters::class)
-abstract class AppDatabase : RoomDatabase() {
+@Dao
+interface SessionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSession(session: Session): Long
 
-    abstract fun preferenceDao(): PreferenceDao
-    abstract fun statDao(): StatDao
-    abstract fun systemDao(): SystemDao
-    abstract fun sessionDao(): SessionDao
+    @Query("SELECT * FROM session ORDER BY startTime DESC")
+    fun getAllSessions(): Flow<List<Session>>
+
+    @Query("DELETE FROM session")
+    suspend fun deleteAllSessions()
 }

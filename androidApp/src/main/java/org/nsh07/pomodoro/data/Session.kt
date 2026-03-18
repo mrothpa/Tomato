@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025-2026 Nishant Mishra
+ * Copyright (c) 2025 Nishant Mishra
  *
  * This file is part of Tomato - a minimalist pomodoro timer for Android.
  *
@@ -17,24 +17,19 @@
 
 package org.nsh07.pomodoro.data
 
-import androidx.room.AutoMigration
-import androidx.room.Database
-import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
-@Database(
-    entities = [IntPreference::class, BooleanPreference::class, StringPreference::class, Stat::class, Session::class],
-    version = 3,
-    autoMigrations = [
-        AutoMigration(from = 1, to = 2),
-        AutoMigration(from = 2, to = 3)
-    ]
-)
-@TypeConverters(Converters::class)
-abstract class AppDatabase : RoomDatabase() {
-
-    abstract fun preferenceDao(): PreferenceDao
-    abstract fun statDao(): StatDao
-    abstract fun systemDao(): SystemDao
-    abstract fun sessionDao(): SessionDao
+enum class SessionType {
+    FOCUS, BREAK
 }
+
+@Entity(tableName = "session")
+data class Session(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val title: String?,
+    val startTime: Long,
+    val endTime: Long,
+    val type: SessionType
+)

@@ -37,6 +37,7 @@ val dbModule = module {
     single { get<AppDatabase>().preferenceDao() }
     single { get<AppDatabase>().statDao() }
     single { get<AppDatabase>().systemDao() }
+    single { get<AppDatabase>().sessionDao() }
 }
 
 val servicesModule = module {

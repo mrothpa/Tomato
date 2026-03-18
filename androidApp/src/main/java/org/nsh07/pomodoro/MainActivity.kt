@@ -17,15 +17,22 @@
 
 package org.nsh07.pomodoro
 
+import android.Manifest
+import android.app.AlertDialog
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.android.ext.android.inject
 import org.nsh07.pomodoro.data.StateRepository
@@ -41,6 +48,19 @@ class MainActivity : ComponentActivity() {
     private val stateRepository: StateRepository by inject()
     private val activityCallbacks: ActivityCallbacks by inject()
 
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val readGranted = permissions[Manifest.permission.READ_CALENDAR] ?: false
+        val writeGranted = permissions[Manifest.permission.WRITE_CALENDAR] ?: false
+        
+        if (readGranted && writeGranted) {
+            Log.d("MainActivity", "Calendar permissions granted")
+        } else {
+            Log.d("MainActivity", "Calendar permissions denied")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -51,6 +71,8 @@ class MainActivity : ComponentActivity() {
                 setTurnScreenOn(it)
             }
         }
+
+        checkAndRequestCalendarPermissions()
 
         setContent {
             val settingsState by settingsViewModel.settingsState.collectAsStateWithLifecycle()
@@ -86,6 +108,39 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun checkAndRequestCalendarPermissions() {
+        val readPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR)
+        val writePermission = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR)
+
+        if (readPermission == PackageManager.PERMISSION_GRANTED && 
+            writePermission == PackageManager.PERMISSION_GRANTED) {
+            Log.d("MainActivity", "Calendar permissions already granted")
+        } else {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.READ_CALENDAR) ||
+                ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_CALENDAR)) {
+                
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.focus))
+                    .setMessage("Tomato needs calendar permissions to sync your focus sessions with your system calendar.")
+                    .setPositiveButton(getString(R.string.ok)) { _, _ ->
+                        requestPermissions()
+                    }
+                    .setNegativeButton(getString(R.string.back), null)
+                    .show()
+            } else {
+                requestPermissions()
+            }
+        }
+    }
+
+    private fun requestPermissions() {
+        calendarPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.READ_CALENDAR,
+                Manifest.permission.WRITE_CALENDAR
+            )
+        )
+    }
 
     override fun onStop() {
         super.onStop()
